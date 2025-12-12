@@ -7,22 +7,14 @@ import random
 import pandas as pd
 from urllib.parse import urljoin
 
-# ==============================================
-# CONFIG
-# ==============================================
-
 CSV_PATH = "case_cu_pret_estim.csv"
 IMAGES_FOLDER = "images_case"
 
-START_PAGE = 50          # pagina de start
-MAX_NEWS = 1000          # cate anunturi NOI vrem maxim
-MAX_PAGES = 500          # limita superioara
+START_PAGE = 50          
+MAX_NEWS = 1000          
+MAX_PAGES = 500          
 
 os.makedirs(IMAGES_FOLDER, exist_ok=True)
-
-# ==============================================
-# CLOUDSCRAPER
-# ==============================================
 
 scraper = cloudscraper.create_scraper()
 
@@ -43,14 +35,10 @@ def get_page(url, tries=3):
         except:
             pass
 
-        # delay sigur anti-ban
         time.sleep(random.uniform(3, 6))
 
     return None
 
-# ==============================================
-# CSV EXISTENT
-# ==============================================
 
 df_old = pd.read_csv(CSV_PATH)
 existing_links = set(df_old["link"].astype(str))
@@ -58,9 +46,6 @@ existing_links = set(df_old["link"].astype(str))
 start_id = int(df_old["id"].max()) + 1
 print(f"CSV are {len(df_old)} anunțuri. Începem de la ID = {start_id}\n")
 
-# ==============================================
-# DESCRIERE + VANZATOR
-# ==============================================
 
 def extract_descriere(soup):
     h = soup.find(string=re.compile(r"Descriere", re.I))
@@ -119,9 +104,6 @@ def extract_vanzator(soup):
     vanzator["nr_postari"] = n
     return vanzator
 
-# ==============================================
-# POZE
-# ==============================================
 
 def download_image(url, anunt_id, index):
     try:
@@ -166,17 +148,13 @@ def extract_images(soup, base_url, anunt_id):
 
         count_valid += 1
         if count_valid == 1:
-            continue  # skip thumbnail
+            continue 
 
         saved = download_image(full, anunt_id, len(images) + 1)
         if saved:
             images.append(saved)
 
     return images
-
-# ==============================================
-# PRET, CAMERE, MP
-# ==============================================
 
 def extract_fields(text):
     pret = moneda = camere = suprafata = None
@@ -196,9 +174,6 @@ def extract_fields(text):
 
     return pret, moneda, camere, suprafata
 
-# ==============================================
-# SCRAPE ANUNT COMPLET
-# ==============================================
 
 def scrape_anunt(url, anunt_id):
     html = get_page(url)
@@ -238,10 +213,6 @@ def scrape_anunt(url, anunt_id):
         "nr_imagini": len(imagini)
     }
 
-# ==============================================
-# LINKURI DIN PAGINA DE LISTA
-# ==============================================
-
 def extract_listing_links(soup, page_url):
     raw = []
 
@@ -266,9 +237,6 @@ def extract_listing_links(soup, page_url):
 
     return clean
 
-# ==============================================
-# MAIN
-# ==============================================
 
 def main():
     base = "https://www.publi24.ro/anunturi/imobiliare/de-vanzare/case/?withpictures=true"
@@ -281,11 +249,11 @@ def main():
     while new_count < MAX_NEWS and page <= MAX_PAGES:
 
         page_url = f"{base}&page={page}"
-        print(f"\n📄 PAGINA {page}: {page_url}")
+        print(f"\n PAGINA {page}: {page_url}")
 
         html = get_page(page_url)
         if not html:
-            print("⚠ Nu pot încărca pagina.")
+            print(" Nu pot încărca pagina.")
             page += 1
             continue
 
@@ -299,7 +267,6 @@ def main():
             page += 1
             continue
 
-        # procesam linkurile de pe pagina asta
         for link in new_links:
             if new_count >= MAX_NEWS:
                 break
@@ -313,24 +280,21 @@ def main():
                 new_count += 1
                 anunt_id += 1
 
-            # delay sigur între anunțuri
             time.sleep(random.uniform(1.4, 2.7))
 
-        # salvam dupa fiecare pagina
         if df_new_rows:
             df_new = pd.DataFrame(df_new_rows)
             df_new = df_new.reindex(columns=df_old.columns)
             df_final = pd.concat([df_old, df_new], ignore_index=True)
             df_final.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
 
-        # cooldown între pagini
-        print("   ⏳ Cooldown 6–10 secunde...")
+        print("  Cooldown 6–10 secunde...")
         time.sleep(random.uniform(6, 10))
 
         page += 1
 
-    print(f"\n🎉 GATA! Adăugat {new_count} anunțuri noi.")
-    print(f"📁 Imaginile sunt în {IMAGES_FOLDER}")
+    print(f"\Adăugat {new_count} anunțuri noi.")
+    print(f"Imaginile sunt în {IMAGES_FOLDER}")
 
 if __name__ == "__main__":
     main()
